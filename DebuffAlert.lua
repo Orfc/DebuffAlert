@@ -6,10 +6,13 @@ local lastDebuffState = false
 -- Create the floating alert text
 local function CreateAlertText()
     alertText = UIParent:CreateFontString(nil, "OVERLAY")
-    alertText:SetFont("Fonts\\FRIZQT__.TTF", 48, "OUTLINE")
+    alertText:SetFont("Fonts\\FRIZQT__.TTF", 160, "OUTLINE")
     alertText:SetPoint("CENTER", UIParent, "CENTER", 0, 200)
     alertText:SetTextColor(1, 0, 0, 1)
     alertText:SetText("Weakened Soul!")
+    alertText:SetShadowColor(0, 0, 0, 1)
+    alertText:SetShadowOffset(4, -4)
+    alertText:SetSpacing(4)
     alertText:Hide()
 end
 
@@ -31,6 +34,7 @@ local function CheckDebuff()
     -- Update alert visibility based on debuff state
     if hasDebuff and not lastDebuffState then
         alertText:Show()
+        PlaySoundFile("Sound\\Interface\\RaidWarning.wav", "Master")
         lastDebuffState = true
     elseif not hasDebuff and lastDebuffState then
         alertText:Hide()
