@@ -2,6 +2,25 @@ local debuffTextureToWatch = "Interface\\Icons\\Spell_Holy_AshesToAshes" -- "Wea
 local frame = CreateFrame("Frame")
 local alertText = nil
 local lastDebuffState = false
+local flashFrame = nil
+
+-- Create the screen flash frame
+local function CreateFlashFrame()
+    if flashFrame then
+        flashFrame:Hide()
+        flashFrame = nil
+    end
+    
+    flashFrame = CreateFrame("Frame", nil, UIParent)
+    flashFrame:SetAllPoints(UIParent)
+    flashFrame:SetFrameStrata("FULLSCREEN_DIALOG")
+    flashFrame:SetAlpha(0)
+    
+    local texture = flashFrame:CreateTexture(nil, "BACKGROUND")
+    texture:SetAllPoints(flashFrame)
+    texture:SetTexture("Interface\\FullScreenTextures\\LowHealth")
+    texture:SetVertexColor(1, 0, 0, 0.5) -- Red color with 50% opacity
+end
 
 -- Create the floating alert text
 local function CreateAlertText()
@@ -14,6 +33,12 @@ local function CreateAlertText()
     alertText:SetShadowOffset(4, -4)
     alertText:SetSpacing(4)
     alertText:Hide()
+end
+
+-- Flash animation
+local function FlashScreen()
+    if not flashFrame then return end
+    UIFrameFadeIn(flashFrame, 0.2, 0, 0.5)
 end
 
 -- Check for the specific debuff
@@ -35,9 +60,13 @@ local function CheckDebuff()
     if hasDebuff and not lastDebuffState then
         alertText:Show()
         PlaySoundFile("Sound\\Interface\\RaidWarning.wav", "Master")
+        FlashScreen() -- Add screen flash effect
         lastDebuffState = true
     elseif not hasDebuff and lastDebuffState then
         alertText:Hide()
+        if flashFrame then
+            flashFrame:Hide()
+        end
         lastDebuffState = false
     end
 end
@@ -48,9 +77,11 @@ frame:SetScript("OnEvent", function()
     if not event then return end
     
     if event == "ADDON_LOADED" then
+        CreateFlashFrame()
         CreateAlertText()
         CheckDebuff()
     elseif event == "PLAYER_ENTERING_WORLD" then
+        CreateFlashFrame()
         CreateAlertText()
         CheckDebuff()
     elseif event == "UNIT_AURA" then
@@ -69,6 +100,7 @@ frame:SetScript("OnUpdate", function(self, elapsed)
     if not elapsed then return end
     timeSinceLastCheck = timeSinceLastCheck + elapsed
     if timeSinceLastCheck >= 1 then
+        CreateFlashFrame()
         CreateAlertText()
         CheckDebuff()
         self:SetScript("OnUpdate", nil)
