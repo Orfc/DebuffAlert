@@ -1,4 +1,4 @@
-local debuffTextureToWatch = "Interface\\Icons\\Inv_Misc_Shadowegg" -- "Corruption of Medivh"
+local debuffTextureToWatch = "Interface\\Icons\\Spell_BrokenHeart"
 local frame = CreateFrame("Frame")
 local alertText = nil
 local lastDebuffState = false
@@ -28,7 +28,7 @@ local function CreateAlertText()
     alertText:SetFont("Fonts\\FRIZQT__.TTF", 160, "OUTLINE")
     alertText:SetPoint("CENTER", UIParent, "CENTER", 0, 200)
     alertText:SetTextColor(1, 0, 0, 1)
-    alertText:SetText("Corruption of Medivh!")
+    alertText:SetText("Dark Subservience!")
     alertText:SetShadowColor(0, 0, 0, 1)
     alertText:SetShadowOffset(4, -4)
     alertText:SetSpacing(4)
@@ -50,7 +50,7 @@ local function CheckDebuff()
     -- Check all debuffs
     for i = 1, 40 do
         local texture = UnitDebuff("player", i)
-        if texture == debuffTextureToWatch then
+        if texture and debuffTextureToWatch and string.lower(texture) == string.lower(debuffTextureToWatch) then
             hasDebuff = true
             break
         end
