@@ -23,6 +23,22 @@
         </Backdrop>
 
         <Frames>
+            <Button name="DebuffAlert_MoveButton" inherits="UIPanelButtonTemplate" text="Move Alert Position">
+                <Size><AbsDimension x="160" y="22"/></Size>
+                <Anchors>
+                    <Anchor point="BOTTOMLEFT" relativeTo="$parent" relativePoint="BOTTOMLEFT" x="20" y="20"/>
+                </Anchors>
+                <Scripts>
+                    <OnClick>
+                        if DebuffAlert_DraggableAlert:IsShown() then
+                            DebuffAlert_DraggableAlert:Hide()  -- Hide the draggable alert
+                        else
+                            DebuffAlert_DraggableAlert:Show()  -- Show the draggable alert
+                        end
+                    </OnClick>
+                </Scripts>
+            </Button>
+
             <!-- Input box -->
             <EditBox name="DebuffAlert_AddInput" inherits="InputBoxTemplate" autoFocus="false">
                 <Size><AbsDimension x="280" y="20"/></Size>

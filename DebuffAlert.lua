@@ -5,6 +5,7 @@ local flashFrame = nil
 
 local function LoadVariables()
     DebuffAlert_Store = DebuffAlert_Store or {}
+    DebuffAlert_Store.AlertPosition = DebuffAlert_Store.AlertPosition or { point = "CENTER", x = 0, y = 200 }
     DebuffAlert_Store.DebuffTexturesToWatch = DebuffAlert_Store.DebuffTexturesToWatch or
         {
             ["Spell_BrokenHeart"] = { enabled = true },
@@ -48,15 +49,36 @@ end
 
 -- Create the floating alert text
 local function CreateAlertText()
+    local pos = DebuffAlert_Store.AlertPosition
     alertText = UIParent:CreateFontString(nil, "OVERLAY")
     alertText:SetFont("Fonts\\FRIZQT__.TTF", 160, "OUTLINE")
-    alertText:SetPoint("CENTER", UIParent, "CENTER", 0, 200)
+    alertText:SetPoint(pos.point, UIParent, pos.point, pos.x, pos.y)
     alertText:SetTextColor(1, 0, 0, 1)
     alertText:SetText("Debuff Alert - Move!")
     alertText:SetShadowColor(0, 0, 0, 1)
     alertText:SetShadowOffset(4, -4)
     alertText:SetSpacing(4)
     alertText:Hide()
+
+    -- Update the position of the alert text if position data changes
+    local function UpdateAlertTextPosition()
+        local pos = DebuffAlert_Store.AlertPosition
+        if pos then
+            alertText:ClearAllPoints()
+            alertText:SetPoint(pos.point, UIParent, pos.point, pos.x, pos.y)
+        end
+    end
+
+    -- Call this function whenever the position changes
+    DebuffAlert_DraggableAlert:SetScript("OnDragStop", function()
+        DebuffAlert_DraggableAlert:StopMovingOrSizing()  -- Stop moving the frame
+        local point, _, _, x, y = DebuffAlert_DraggableAlert:GetPoint()  -- Get the new position
+        DebuffAlert_Store.AlertPosition = { point = point, x = x, y = y }  -- Save the new position
+        UpdateAlertTextPosition()  -- Update the alert text position immediately
+    end)
+
+    -- Initially set the position of the alert text
+    UpdateAlertTextPosition()
 end
 
 -- Flash animation
@@ -64,6 +86,42 @@ local function FlashScreen()
     if not flashFrame then return end
     UIFrameFadeIn(flashFrame, 0.2, 0, 0.5)
 end
+
+-- Create the draggable alert (default to hidden)
+local DebuffAlert_DraggableAlert = CreateFrame("Frame", "DebuffAlert_DraggableAlert", UIParent)
+DebuffAlert_DraggableAlert:SetWidth(200)  -- Set width instead of SetSize
+DebuffAlert_DraggableAlert:SetHeight(30)  -- Set height instead of SetSize
+DebuffAlert_DraggableAlert:SetBackdrop({
+    bgFile = "Interface/Tooltips/UI-Tooltip-Background",
+    edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
+    tile = true, tileSize = 16, edgeSize = 16,
+    insets = { left = 4, right = 4, top = 4, bottom = 4 }
+})
+DebuffAlert_DraggableAlert:SetBackdropColor(0, 0, 0, 0.8)
+DebuffAlert_DraggableAlert.text = DebuffAlert_DraggableAlert:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+DebuffAlert_DraggableAlert.text:SetPoint("CENTER", DebuffAlert_DraggableAlert, "CENTER")
+DebuffAlert_DraggableAlert.text:SetText("Debuff Alert Position")
+DebuffAlert_DraggableAlert:EnableMouse(true)
+DebuffAlert_DraggableAlert:RegisterForDrag("LeftButton")
+DebuffAlert_DraggableAlert:SetMovable(true)
+DebuffAlert_DraggableAlert:SetClampedToScreen(true)
+DebuffAlert_DraggableAlert:Hide()  -- Keep it hidden by default
+
+-- OnDragStart and OnDragStop should directly use DebuffAlert_DraggableAlert in their functions
+DebuffAlert_DraggableAlert:SetScript("OnDragStart", function()
+    DebuffAlert_DraggableAlert:StartMoving()  -- Start moving the frame
+end)
+
+DebuffAlert_DraggableAlert:SetScript("OnDragStop", function()
+    DebuffAlert_DraggableAlert:StopMovingOrSizing()  -- Stop moving the frame
+    local point, _, _, x, y = DebuffAlert_DraggableAlert:GetPoint()  -- Get the new position
+    DebuffAlert_Store.AlertPosition = { point = point, x = x, y = y }  -- Save the new position
+    
+    -- Update the position of the actual alert (text) immediately
+    if DebuffAlert_Store.AlertPosition then
+        DebuffAlert_DraggableAlert:SetPoint(DebuffAlert_Store.AlertPosition.point, UIParent, DebuffAlert_Store.AlertPosition.point, DebuffAlert_Store.AlertPosition.x, DebuffAlert_Store.AlertPosition.y)
+    end
+end)
 
 -- Check for the specific debuff
 local function CheckDebuff()
@@ -209,6 +267,11 @@ frame:SetScript("OnEvent", function()
         DebuffAlertOptions = DebuffAlert_Frame
         LoadVariables()
         DebuffAlert_UpdateList()
+
+        -- If there's a stored position, set it
+        if DebuffAlert_Store.AlertPosition then
+            DebuffAlert_DraggableAlert:SetPoint(DebuffAlert_Store.AlertPosition.point, UIParent, DebuffAlert_Store.AlertPosition.point, DebuffAlert_Store.AlertPosition.x, DebuffAlert_Store.AlertPosition.y)
+        end
 
         local function DebuffAlertCommands(msg, editbox)
             if DebuffAlertOptions and DebuffAlertOptions:IsShown() then
