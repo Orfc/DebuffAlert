@@ -1,4 +1,4 @@
-local debuffTextureToWatch = "Interface\\Icons\\Spell_BrokenHeart"
+local debuffTextureToWatch = "Interface\\Icons\\Spell_Shadow_AntiShadow"
 local frame = CreateFrame("Frame")
 local alertText = nil
 local lastDebuffState = false
@@ -28,7 +28,7 @@ local function CreateAlertText()
     alertText:SetFont("Fonts\\FRIZQT__.TTF", 160, "OUTLINE")
     alertText:SetPoint("CENTER", UIParent, "CENTER", 0, 200)
     alertText:SetTextColor(1, 0, 0, 1)
-    alertText:SetText("Dark Subservience!")
+    alertText:SetText("Mark of the Highlord!")
     alertText:SetShadowColor(0, 0, 0, 1)
     alertText:SetShadowOffset(4, -4)
     alertText:SetSpacing(4)
