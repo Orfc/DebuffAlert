@@ -2,6 +2,8 @@ local frame = CreateFrame("Frame")
 local alertText = nil
 local lastDebuffState = false
 local flashFrame = nil
+local currentPage = 1
+local debuffsPerPage = 5
 
 local function LoadVariables()
     DebuffAlert_Store = DebuffAlert_Store or {}
@@ -153,7 +155,7 @@ function DebuffAlert_ShowTestAlert(texture)
     
     -- Set the alert text based on the custom name (if it exists)
     if debuffName and debuffName ~= "" then
-        alertFrame.text:SetText(debuffName .. " - Move!")
+        alertFrame.text:SetText(debuffName)
     else
         alertFrame.text:SetText("Debuff Alert - Move!")
     end
@@ -351,7 +353,7 @@ local function CheckDebuff()
         
         -- Set the alert text based on the custom name (if it exists)
         if currentDebuffName and currentDebuffName ~= "" then
-            alertFrame.text:SetText(currentDebuffName .. " - Move!")
+            alertFrame.text:SetText(currentDebuffName)
         else
             alertFrame.text:SetText("Debuff Alert - Move!")
         end
@@ -398,8 +400,16 @@ function DebuffAlert_UpdateList()
     end
 
     local total = table.getn(textures)
-    local offset = FauxScrollFrame_GetOffset(scrollFrame)
-    local numToShow = 10
+    local offset = (currentPage - 1) * debuffsPerPage
+    local numToShow = debuffsPerPage
+
+    -- Clear existing rows before adding new ones
+    for i = 1, numToShow do
+        local row = getglobal("DebuffAlert_Row"..i)
+        if row then
+            row:Hide()
+        end
+    end
 
     for i = 1, numToShow do
         local index = offset + i
@@ -464,7 +474,7 @@ function DebuffAlert_UpdateList()
                 -- Update the displayed alert text if we're in test mode for this texture
                 if testModeActive and testModeTexture == row.texture then
                     if newName and newName ~= "" then
-                        alertFrame.text:SetText(newName .. " - Move!")
+                        alertFrame.text:SetText(newName)
                     else
                         alertFrame.text:SetText("Debuff Alert - Move!")
                     end
@@ -508,7 +518,35 @@ function DebuffAlert_UpdateList()
         end
     end
 
-    FauxScrollFrame_Update(scrollFrame, total, numToShow, 20)
+     -- Update the pagination buttons
+     UpdatePaginationButtons(total)
+end
+
+-- Function to update the state of the pagination buttons
+function UpdatePaginationButtons(total)
+    -- Calculate total pages
+    local totalPages = math.ceil(total / debuffsPerPage)
+
+    if totalPages > 1 then
+        DebuffAlert_PreviousButton:Show()
+        DebuffAlert_NextButton:Show()
+    else
+        DebuffAlert_PreviousButton:Hide()
+        DebuffAlert_NextButton:Hide()
+    end
+
+    -- Enable/Disable Previous and Next buttons
+    if currentPage > 1 then
+        DebuffAlert_PreviousButton:Enable()
+    else
+        DebuffAlert_PreviousButton:Disable()
+    end
+
+    if currentPage < totalPages then
+        DebuffAlert_NextButton:Enable()
+    else
+        DebuffAlert_NextButton:Disable()
+    end
 end
 
 -- Create the toggle icon button (placed next to the Move Alert Position button)
@@ -607,6 +645,15 @@ function DebuffAlert_InitializeIconToggle()
     return button
 end
 
+function GetDebuffCount()
+    local count = 0
+    for _ in pairs(DebuffAlert_Store.DebuffTexturesToWatch) do
+        count = count + 1
+    end
+    return count
+end
+
+
 -- Modify the event handler
 -- Replace your existing event handler with this updated version
 frame:SetScript("OnEvent", function()
@@ -623,6 +670,24 @@ frame:SetScript("OnEvent", function()
         end
         
         DebuffAlert_UpdateList()
+
+        -- Previous page button
+        DebuffAlert_PreviousButton:SetScript("OnClick", function()
+            if currentPage > 1 then
+                currentPage = currentPage - 1
+                DebuffAlert_UpdateList()
+            end
+        end)
+
+        -- Next page button
+        DebuffAlert_NextButton:SetScript("OnClick", function()
+            local total = GetDebuffCount()
+            local totalPages = math.ceil(total / debuffsPerPage)
+            if currentPage < totalPages then
+                currentPage = currentPage + 1
+                DebuffAlert_UpdateList()
+            end
+        end)
 
         -- If there's a stored position, set it
         if DebuffAlert_Store.AlertPosition then
