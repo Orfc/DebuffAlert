@@ -1,9 +1,11 @@
 local frame = CreateFrame("Frame")
+local DebuffAlert_TimerFrame = CreateFrame("Frame")
 local alertText = nil
 local lastDebuffState = false
 local flashFrame = nil
 local currentPage = 1
 local debuffsPerPage = 5
+local UpdateInterval = 5
 
 local function LoadVariables()
     DebuffAlert_Store = DebuffAlert_Store or {}
@@ -11,9 +13,9 @@ local function LoadVariables()
     DebuffAlert_Store.ShowIcon = DebuffAlert_Store.ShowIcon or true -- Default to showing the icon
     DebuffAlert_Store.DebuffTexturesToWatch = DebuffAlert_Store.DebuffTexturesToWatch or
         {
-            ["Spell_BrokenHeart"] = { enabled = true, name = "" },
-            ["Spell_Shadow_AntiShadow"] = { enabled = true, name = "" },
-            ["Inv_Misc_ShadowEgg"] = { enabled = true, name = "" },
+            ["Spell_BrokenHeart"] = { enabled = true, name = "", boss_warning = "" },
+            ["Spell_Shadow_AntiShadow"] = { enabled = true, name = "", boss_warning = "" },
+            ["Inv_Misc_ShadowEgg"] = { enabled = true, name = "", boss_warning = "" },
             -- Add more here
         }  
 end
@@ -114,9 +116,6 @@ function DebuffAlert_EndTestMode()
     end
     
     lastDebuffState = false
-    
-    -- Inform the user that test mode has ended
-    DEFAULT_CHAT_FRAME:AddMessage("Debuff Alert: Test completed.")
     
     -- Re-initialize the standard delay check (if needed)
     local timeSinceLastCheck = 0
@@ -337,7 +336,11 @@ local function CheckDebuff()
                 break
             end
         end        
-    end    
+    end
+
+    if hasDebuff then
+        DebuffAlert_EndTestMode()
+    end
 
     -- Update alert visibility based on debuff state
     if hasDebuff and not lastDebuffState then
@@ -371,18 +374,6 @@ local function CheckDebuff()
     end
 end
 
--- Override the CheckDebuff function to account for test mode
-local original_CheckDebuff = CheckDebuff
-function CheckDebuff()
-    if testModeActive then
-        -- Don't check for real debuffs during test mode
-        return
-    end
-    
-    -- Call the original function
-    original_CheckDebuff()
-end
-
 function DebuffAlert_OnDebuffToggle()
     local texture = this.texture
     if texture and DebuffAlert_Store.DebuffTexturesToWatch[texture] then
@@ -396,7 +387,7 @@ function DebuffAlert_UpdateList()
 
     -- Build a numerically indexed list of debuffs
     for texture, data in pairs(DebuffAlert_Store.DebuffTexturesToWatch or {}) do
-        table.insert(textures, { texture = texture, enabled = data.enabled, name = data.name or "" })
+        table.insert(textures, { texture = texture, enabled = data.enabled, name = data.name or "", boss_warning = data.boss_warning or "" })
     end
 
     local total = table.getn(textures)
@@ -417,7 +408,7 @@ function DebuffAlert_UpdateList()
 
         if not row then
             row = CreateFrame("CheckButton", "DebuffAlert_Row"..i, DebuffAlert_Frame, "OptionsCheckButtonTemplate")
-            row:SetPoint("TOPLEFT", DebuffAlert_ScrollFrame, "TOPLEFT", 32, -((i - 1) * 36))
+            row:SetPoint("TOPLEFT", DebuffAlert_ScrollFrame, "TOPLEFT", 32, -((i - 1) * 40))
             row.text = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
             row.text:SetPoint("LEFT", row, "RIGHT", 5, 0)
 
@@ -441,12 +432,37 @@ function DebuffAlert_UpdateList()
                 this:ClearFocus()
             end)
 
-            -- Delete button - moved to the right of the name edit box
+            -- Create name label
+            local nameLabel = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            nameLabel:SetPoint("BOTTOMLEFT", row.nameEdit, "TOPLEFT", 0, 2)  -- Position above the nameEdit
+            nameLabel:SetText("Alert Text")
+
+            -- Create boss warning edit box
+            row.bossWarningEdit = CreateFrame("EditBox", "DebuffAlert_BossWarningEdit"..i, row, "InputBoxTemplate")
+            row.bossWarningEdit:SetHeight(20)
+            row.bossWarningEdit:SetWidth(120)
+            row.bossWarningEdit:SetPoint("LEFT", row.nameEdit, "RIGHT", 20, 0)
+            row.bossWarningEdit:SetAutoFocus(false)
+            row.bossWarningEdit:SetMaxLetters(100)  -- Adjust max letters as needed
+            row.bossWarningEdit:SetFont("Fonts\\FRIZQT__.TTF", 10, "")
+            row.bossWarningEdit:SetScript("OnEnterPressed", function()
+                this:ClearFocus()
+            end)
+            row.bossWarningEdit:SetScript("OnEscapePressed", function()
+                this:ClearFocus()
+            end)
+
+            -- Create boss warning label
+            local bossWarningLabel = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            bossWarningLabel:SetPoint("BOTTOMLEFT", row.bossWarningEdit, "TOPLEFT", 0, 2)  -- Position above the bossWarningEdit
+            bossWarningLabel:SetText("Message to Listen For")
+
+            -- Delete button - moved to the right of the boss warning edit box
             row.deleteButton = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
             row.deleteButton:SetWidth(18)
             row.deleteButton:SetHeight(18)
             row.deleteButton:SetText("X")
-            row.deleteButton:SetPoint("LEFT", row.nameEdit, "RIGHT", 10, 0)
+            row.deleteButton:SetPoint("LEFT", row.bossWarningEdit, "RIGHT", 10, 0)
             
             -- Test button
             row.testButton = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
@@ -463,6 +479,7 @@ function DebuffAlert_UpdateList()
             row.text:SetText(entry.texture)
             row.icon:SetTexture("Interface\\Icons\\" .. entry.texture)
             row.nameEdit:SetText(entry.name or "")
+            row.bossWarningEdit:SetText(entry.boss_warning or "")  -- Set the boss warning text
 
             row.texture = entry.texture
             row:SetScript("OnClick", DebuffAlert_OnDebuffToggle)
@@ -479,6 +496,12 @@ function DebuffAlert_UpdateList()
                         alertFrame.text:SetText("Debuff Alert - Move!")
                     end
                 end
+            end)
+
+            -- Set up script to save the boss warning when it changes
+            row.bossWarningEdit:SetScript("OnEditFocusLost", function()
+                local newBossWarning = this:GetText() or ""
+                DebuffAlert_Store.DebuffTexturesToWatch[row.texture].boss_warning = newBossWarning
             end)
 
             row.deleteButton:SetScript("OnClick", function()
@@ -510,11 +533,13 @@ function DebuffAlert_UpdateList()
             
             row.testButton:Show()
             row.nameEdit:Show()
+            row.bossWarningEdit:Show()  -- Show the boss warning edit box
         else
             row:Hide()
             if row.deleteButton then row.deleteButton:Hide() end
             if row.testButton then row.testButton:Hide() end
             if row.nameEdit then row.nameEdit:Hide() end
+            if row.bossWarningEdit then row.bossWarningEdit:Hide() end  -- Hide the boss warning edit box
         end
     end
 
@@ -653,6 +678,43 @@ function GetDebuffCount()
     return count
 end
 
+local function setTimer(duration, func)
+	local endTime = GetTime() + duration;
+	
+    DebuffAlert_TimerFrame:Show()
+	DebuffAlert_TimerFrame:SetScript("OnUpdate", function()
+		if(endTime < GetTime()) then
+			--time is up
+			func()
+			DebuffAlert_TimerFrame:SetScript("OnUpdate", nil)
+            DebuffAlert_TimerFrame:Hide()
+		end
+	end);
+end
+
+local function OnChatMessage(msg, sender)
+    -- Convert the incoming message to lowercase for case insensitive comparison
+    local lowerMsg = string.lower(msg)
+
+    -- Check against each active debuff's boss_warning value
+    for texture, data in pairs(DebuffAlert_Store.DebuffTexturesToWatch) do
+        if data.enabled and data.boss_warning and data.boss_warning ~= "" then
+            if string.find(lowerMsg, string.lower(data.boss_warning)) then
+                -- Trigger the debuff alert for the specific texture
+                DebuffAlert_ShowTestAlert(texture)  -- Use the actual texture path
+                testModeActive = true
+
+                setTimer(5, function()
+                    if testModeActive then
+                        DebuffAlert_EndTestMode()
+                    end
+                    DebuffAlert_TimerFrame:Hide()
+                end)
+                break  -- Exit the loop once a match is found
+            end
+        end
+    end
+end
 
 -- Modify the event handler
 -- Replace your existing event handler with this updated version
@@ -713,6 +775,13 @@ frame:SetScript("OnEvent", function()
         DebuffAlert_InitializeIconToggle()
         
         CheckDebuff()
+
+        -- Outside the function, on load:
+        DebuffAlert_TimerFrame:Hide()
+    elseif event == "CHAT_MSG_RAID_BOSS_EMOTE" or event == "CHAT_MSG_RAID_BOSS_WHISPER" or event == "CHAT_MSG_MONSTER_EMOTE" or event == "CHAT_MSG_SPELL_CREATURE_VS_CREATURE_DAMAGE" or event == "CHAT_MSG_SPELL_CREATURE_VS_CREATURE_BUFF" or event == "CHAT_MSG_RAID_WARNING" then
+        local msg = arg1  -- The message text
+        local sender = arg2  -- The sender of the message
+        OnChatMessage(msg, sender)  -- Pass the captured arguments
     elseif event == "PLAYER_ENTERING_WORLD" then
         CreateFlashFrame()
         if not alertFrame then
@@ -726,10 +795,7 @@ frame:SetScript("OnEvent", function()
         
         CheckDebuff()
     elseif event == "UNIT_AURA" and arg1 == "player" then
-        -- Only check for real debuffs if we're not in test mode
-        if not testModeActive then
-            CheckDebuff()
-        end
+        CheckDebuff()
     elseif event == "PLAYER_LOGOUT" then
         -- Ensure we end test mode when logging out
         if testModeActive then
@@ -743,6 +809,12 @@ frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:RegisterEvent("UNIT_AURA")
 frame:RegisterEvent("PLAYER_LOGOUT")
+frame:RegisterEvent("CHAT_MSG_RAID_BOSS_EMOTE")
+frame:RegisterEvent("CHAT_MSG_RAID_BOSS_WHISPER")
+frame:RegisterEvent("CHAT_MSG_MONSTER_EMOTE")
+frame:RegisterEvent("CHAT_MSG_SPELL_CREATURE_VS_CREATURE_DAMAGE")
+frame:RegisterEvent("CHAT_MSG_SPELL_CREATURE_VS_CREATURE_BUFF")
+frame:RegisterEvent("CHAT_MSG_RAID_WARNING")
 
 -- Additional event to handle hiding options window
 -- Add a script to end test mode when the options panel is closed

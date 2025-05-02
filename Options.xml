@@ -5,7 +5,7 @@
     <Frame name="DebuffAlert_Frame" parent="UIParent" hidden="true" toplevel="true" movable="true"
         enableMouse="true">
         <Size>
-            <AbsDimension x="500" y="350" />
+            <AbsDimension x="600" y="350" />
         </Size>
         <Anchors>
             <Anchor point="TOPLEFT">
@@ -124,7 +124,11 @@
                 </Size>
                 <Anchors>
                     <Anchor point="TOPLEFT" relativeTo="DebuffAlert_AddInput"
-                        relativePoint="BOTTOMLEFT" x="0" y="-10" />
+                        relativePoint="BOTTOMLEFT">
+                        <Offset>
+                            <AbsDimension x="0" y="-10" />
+                        </Offset>
+                        </Anchor>
                 </Anchors>
             </Frame>
 
